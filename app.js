@@ -5,6 +5,9 @@ const Listing=require('./models/listing');
 const path = require('path');
 const methodOverride = require('method-override');
 const ejsMate = require('ejs-mate');
+const wrapAsync = require('./utils/wrapAsync.js');
+const {listingSchema} = require('./schema.js');
+
 
 const MONGO_URL="mongodb://127.0.0.1:27017/waywise";
 
@@ -31,8 +34,19 @@ app.get("/",(req,res)=>{
     res.send("Hi, This is root");
 });
 
+const validateListing = (req, res, next) => {
+    let {error}=listingSchema.validate(req.body);
+    if (error) {
+        let msg = error.details.map(el => el.message).join(',');
+        throw new Error(msg);
+    } else {
+        next();
+    }
+};
+
+
 //Index Route
-app.get("/listings",async(req,res)=>{
+app.get("/listings",validateListing,async(req,res)=>{
     const allListings = await Listing.find({})
     res.render("listings/index.ejs", { allListings });
 });
@@ -51,18 +65,18 @@ app.get("/listings/:id",async(req,res)=>{
 
 
 // Create Route
-app.post("/listings", async (req, res) => {
-    let { title, description, price, location, country } = req.body;
-    let newListing = new Listing({
+app.post("/listings", wrapAsync(async (req, res, next) => {
+        let { title, description, price, location, country } = req.body;
+        let newListing = new Listing({
         title,
         description,
         price,
         location,
         country
-    });
-    await newListing.save();
-    res.redirect("/listings");
-});
+        });
+        await newListing.save();
+        res.redirect("/listings");
+    }));
 
 
 // Edit Route
@@ -73,7 +87,7 @@ app.get("/listings/:id/edit", async (req, res) => {
 });
 
 // Update Route
-app.put("/listings/:id",async (req, res) => {
+app.put("/listings/:id", validateListing, async (req, res) => {
     let { id } = req.params;
     await Listing.findByIdAndUpdate(id, {...req.body }, { new: true });
     res.redirect(`/listings/${id}`);
@@ -99,6 +113,18 @@ app.delete("/listings/:id", async (req, res) => {
 //     console.log("Sample listing saved");
 //     res.send("Successfull testing");
 // });
+
+// 404 Not Found Handler
+app.use((req, res) => {
+    res.status(404).render("error.ejs", { message: "Page Not Found", statusCode: 404 });
+});
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+    let { statusCode = 500, message = "Something went wrong!" } = err;
+    res.status(statusCode).render("error.ejs", { message });
+    // res.status(statusCode).send(message);
+});
 
 app.listen(3000,()=>{
     console.log('Server is running on port 3000');
