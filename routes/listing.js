@@ -28,12 +28,16 @@ router.get("/new", (req, res) => {
 });
 
 //Show Route
-router.get("/:id",async(req,res)=>{
+router.get("/:id",wrapAsync(async(req,res)=>{
     let {id} = req.params;
     const listing = await Listing.findById(id).populate('reviews');
+    if(!listing) {
+        req.flash("error", "Listing you requested for does not exist!");
+        return res.redirect("/listings");
+    }
     res.render("listings/show.ejs", { listing });
-    console.log(listing.reviews);
-});
+  })
+);
 
 
 // Create Route
@@ -56,6 +60,10 @@ router.post("/", wrapAsync(async (req, res, next) => {
 router.get("/:id/edit", async (req, res) => {
     let {id}=req.params;
     const listing = await Listing.findById(id);
+    if(!listing) {
+        req.flash("error", "Listing you requested for does not exist!");
+        return res.redirect("/listings");
+    }
     res.render("listings/edit.ejs", { listing });
 });
 
@@ -69,12 +77,13 @@ router.put("/:id", validateListing, wrapAsync(async (req, res) => {
 
 
 // Delete Route
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", wrapAsync(async (req, res) => {
     let { id } = req.params;
     let deletedListing=await Listing.findByIdAndDelete(id);
     console.log("Deleted Listing:", deletedListing);
     req.flash('success', 'Listing Deleted!');
     res.redirect("/listings");
-});
+  })
+);
 
 module.exports=router;

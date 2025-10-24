@@ -5,16 +5,13 @@ const {reviewSchema} = require('../schema.js');
 const Review = require('../models/review');
 const Listing=require('../models/listing');
 const mongoose = require('mongoose');
-
+const ExpressError = require('../utils/ExpressError');
 
 const validateReview = (req, res, next) => {
-    // Wrap req.body in { review } if it doesn’t exist
-    const dataToValidate = req.body.review ? req.body : { review: req.body };
-
-    const { error } = reviewSchema.validate(dataToValidate);
+    const { error } = reviewSchema.validate(req.body);
     if (error) {
         let msg = error.details.map(el => el.message).join(', ');
-        throw new Error(msg);
+        throw new ExpressError(msg, 400);
     } else {
         next();
     }
