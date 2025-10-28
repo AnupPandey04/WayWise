@@ -28,7 +28,10 @@ module.exports.showListing= async(req,res)=>{
 };
 
 module.exports.createListing= async (req, res, next) => {
-    let { title, description, price, location, country } = req.body;
+    let url = req.file.path;
+    let filename = req.file.filename;
+    const { title, description, price, location, country } = req.body.listing;
+
     let newListing = new Listing({
     title,
     description,
@@ -36,7 +39,9 @@ module.exports.createListing= async (req, res, next) => {
     location,
     country
     });
+
     newListing.owner = req.user._id;
+    newListing.image = { url, filename };
     await newListing.save();
     req.flash('success', 'Successfully created a new listing!');
     res.redirect("/listings");
@@ -52,11 +57,33 @@ module.exports.renderEditForm= async (req, res) => {
     res.render("listings/edit.ejs", { listing });
 };
 
-module.exports.updateListing= async (req, res) => {
-  const { id } = req.params;
-  await Listing.findByIdAndUpdate(id, { ...req.body.listing });
-  req.flash('success', 'Listing Updated!');
-  res.redirect(`/listings/${id}`);
+module.exports.updateListing = async (req, res) => {
+    const { id } = req.params;
+    
+    // Destructure from req.body.listing (nested structure)
+    const { title, description, price, location, country } = req.body.listing;
+
+    // First updating the basic fields
+    await Listing.findByIdAndUpdate(id, { 
+        title, 
+        description, 
+        price, 
+        location, 
+        country 
+    });
+
+    // Then handling image update if a new file was uploaded
+    if(req.file){
+        let url = req.file.path;
+        let filename = req.file.filename;
+        
+        // Updating the image field directly in the database
+        await Listing.findByIdAndUpdate(id, {
+            image: { url, filename }
+        });
+    }
+    req.flash('success', 'Listing Updated!');
+    res.redirect(`/listings/${id}`);
 };
 
 module.exports.deleteListing= async (req, res) => {
