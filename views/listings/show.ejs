@@ -1,5 +1,10 @@
 <% layout("/layouts/boilerplate") %>
 <body>
+    <script>
+        const mapApi='<%=process.env.MAPTILER_API_KEY%>';
+        window.coordinates="<%- JSON.stringify(listing.geometry.coordinates) %>";
+        const listingTitle="<%- listing.title %>";
+    </script>
     <div class="row mt-3">
         <div class="col-8 offset-3">
             <h3><%=listing.title%></h3>
@@ -31,14 +36,10 @@
     </div>
     <% } %> 
     <div class="col-8 offset-3 mb-3">
-        <hr>
         <% if(currentUser) { %>
+        <hr />
         <h4>Leave a Review</h4>
         <form action="/listings/<%=listing._id%>/reviews" method="POST" novalidate class="needs-validation">
-            <!-- <div class="mb-3 mt-3">
-                <label for="rating" class="form-label">Rating</label>
-                <input type="range" min="1" max="5" id="rating" name="rating" class="form-range"/>
-            </div> -->
             <div class="mb-3 mt-3">
             <label for="rating" class="form-label">Rating</label>
             <fieldset class="starability-slot">
@@ -65,9 +66,9 @@
         <hr />
         <% } %>
 
-        
-        <p><b>All Reviews</b></p>
+        <% if(listing.reviews.length > 0) { %>
         <div class="row">
+            <p><b>All Reviews</b></p>
             <% for(review of listing.reviews) { %>
                 <div class="card col-5 ms-3 mb-3">
                     <div class="card-body">
@@ -81,5 +82,16 @@
                 </div>
             <% } %>
         </div>
+        <% } %>
+    </div>
+    <div class="col-8 offset-3 mb-5">
+        <h3>Where you'll be</h3>
+        <div id="map"></div>
     </div>
 </body>
+
+<!-- MapTiler SDK v3 -->
+<script src="https://cdn.maptiler.com/maptiler-sdk-js/v3.8.0/maptiler-sdk.umd.min.js"></script>
+<link href="https://cdn.maptiler.com/maptiler-sdk-js/v3.8.0/maptiler-sdk.css" rel="stylesheet" />
+
+<script src="/js/map.js"></script>

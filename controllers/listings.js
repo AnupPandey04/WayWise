@@ -1,4 +1,8 @@
 const Listing = require('../models/listing');
+const maptilerClient = require('@maptiler/client');
+
+// Configure MapTiler
+maptilerClient.config.apiKey = process.env.MAPTILER_API_KEY;
 
 module.exports.index= async(req,res)=>{
     const allListings = await Listing.find({})
@@ -23,11 +27,13 @@ module.exports.showListing= async(req,res)=>{
         req.flash("error", "Listing you requested for does not exist!");
         return res.redirect("/listings");
     }
+    
     console.log(listing);
     res.render("listings/show.ejs", { listing });
 };
 
 module.exports.createListing= async (req, res, next) => {
+    let response = await maptilerClient.geocoding.forward(req.body.listing.location);
     let url = req.file.path;
     let filename = req.file.filename;
     const { title, description, price, location, country } = req.body.listing;
@@ -42,6 +48,9 @@ module.exports.createListing= async (req, res, next) => {
 
     newListing.owner = req.user._id;
     newListing.image = { url, filename };
+
+    newListing.geometry = response.features[0].geometry;
+    
     await newListing.save();
     req.flash('success', 'Successfully created a new listing!');
     res.redirect("/listings");
@@ -96,3 +105,5 @@ module.exports.deleteListing= async (req, res) => {
     req.flash('success', 'Listing Deleted!');
     res.redirect("/listings");
 };
+
+
