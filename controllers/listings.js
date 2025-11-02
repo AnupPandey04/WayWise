@@ -32,28 +32,47 @@ module.exports.showListing= async(req,res)=>{
     res.render("listings/show.ejs", { listing });
 };
 
-module.exports.createListing= async (req, res, next) => {
-    let response = await maptilerClient.geocoding.forward(req.body.listing.location);
-    let url = req.file.path;
-    let filename = req.file.filename;
-    const { title, description, price, location, country } = req.body.listing;
+module.exports.createListing = async (req, res, next) => {
+    try {
+        // Validating required file upload
+        if (!req.file) {
+            req.flash('error', 'Please upload an image for your listing.');
+            return res.redirect('/listings/new');
+        }
 
-    let newListing = new Listing({
-    title,
-    description,
-    price,
-    location,
-    country
-    });
+        let response = await maptilerClient.geocoding.forward(req.body.listing.location);
+        
+        // Validating geocoding response
+        if (!response.features || response.features.length === 0) {
+            req.flash('error', 'Invalid location provided. Please enter a valid location.');
+            return res.redirect('/listings/new');
+        }
+        
+        let url = req.file.path;
+        let filename = req.file.filename;
+        const { title, description, price, location, country, category } = req.body.listing;
 
-    newListing.owner = req.user._id;
-    newListing.image = { url, filename };
+        let newListing = new Listing({
+            title,
+            description,
+            price,
+            location,
+            country,
+            category
+        });
 
-    newListing.geometry = response.features[0].geometry;
-    
-    await newListing.save();
-    req.flash('success', 'Successfully created a new listing!');
-    res.redirect("/listings");
+        newListing.owner = req.user._id;
+        newListing.image = { url, filename };
+        newListing.geometry = response.features[0].geometry;
+        
+        await newListing.save();
+        req.flash('success', 'Successfully created a new listing!');
+        res.redirect("/listings");
+    } catch (error) {
+        req.flash('error', 'Failed to create listing. Please try again.');
+        console.error('Create listing error:', error);
+        res.redirect('/listings/new');
+    }
 };
 
 module.exports.renderEditForm= async (req, res) => {
@@ -69,31 +88,30 @@ module.exports.renderEditForm= async (req, res) => {
     res.render("listings/edit.ejs", { listing , originalImageUrl });
 };
 
+// In controllers/listings.js - UPDATE THIS FUNCTION
 module.exports.updateListing = async (req, res) => {
     const { id } = req.params;
-    
-    // Destructure from req.body.listing (nested structure)
-    const { title, description, price, location, country } = req.body.listing;
+    const { title, description, price, location, country, category } = req.body.listing;
 
-    // First updating the basic fields
-    await Listing.findByIdAndUpdate(id, { 
+    // Create single update object
+    const updateData = { 
         title, 
         description, 
         price, 
         location, 
-        country 
-    });
+        country, 
+        category 
+    };
 
-    // Then handling image update if a new file was uploaded
+    // Add image to the same update object if file exists
     if(req.file){
-        let url = req.file.path;
-        let filename = req.file.filename;
-        
-        // Updating the image field directly in the database
-        await Listing.findByIdAndUpdate(id, {
-            image: { url, filename }
-        });
+        updateData.image = {
+            url: req.file.path,
+            filename: req.file.filename
+        };
     }
+    
+    await Listing.findByIdAndUpdate(id, updateData);
     req.flash('success', 'Listing Updated!');
     res.redirect(`/listings/${id}`);
 };
@@ -107,3 +125,8 @@ module.exports.deleteListing= async (req, res) => {
 };
 
 
+module.exports.filterByCategory = async (req, res) => {
+  const { category } = req.params;
+  const allListings = await Listing.find({ category });
+  res.render("listings/index", { allListings, category });
+};

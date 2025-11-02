@@ -18,6 +18,23 @@ const listingSchema=new Schema({
     reviews: [
         { type: Schema.Types.ObjectId, ref: "Review" }
     ],
+    category: {
+        type: String,
+        enum: [
+            "Trending",
+            "Rooms",
+            "Iconic Cities",
+            "Mountains",
+            "Castles",
+            "Amazing Pools",
+            "Camping",
+            "Farms",
+            "Arctic",
+            "Domes",
+            "Boats",
+        ],
+        required: true,
+    },
     owner: {
         type: Schema.Types.ObjectId,
         ref: 'User'
