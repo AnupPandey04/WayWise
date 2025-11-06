@@ -1,5 +1,6 @@
 const Listing = require('../models/listing');
 const maptilerClient = require('@maptiler/client');
+const { cloudinary } = require('../cloudConfig.js');
 
 // Configure MapTiler
 maptilerClient.config.apiKey = process.env.MAPTILER_API_KEY;
@@ -88,12 +89,18 @@ module.exports.renderEditForm= async (req, res) => {
     res.render("listings/edit.ejs", { listing , originalImageUrl });
 };
 
-// In controllers/listings.js - UPDATE THIS FUNCTION
 module.exports.updateListing = async (req, res) => {
     const { id } = req.params;
     const { title, description, price, location, country, category } = req.body.listing;
 
-    // Create single update object
+    // Finding the existing listing first
+    const existingListing = await Listing.findById(id);
+    if (!existingListing) {
+        req.flash('error', 'Listing not found!');
+        return res.redirect('/listings');
+    }
+
+    // Creating update object
     const updateData = { 
         title, 
         description, 
@@ -103,8 +110,28 @@ module.exports.updateListing = async (req, res) => {
         category 
     };
 
-    // Add image to the same update object if file exists
+    // Checking if location changed - if so, updating geocoding
+    if (location && location !== existingListing.location) {
+        let response = await maptilerClient.geocoding.forward(location);
+            
+        if (!response.features || response.features.length === 0) {
+            req.flash('error', 'Invalid location provided. Please enter a valid location.');
+            return res.redirect(`/listings/${id}/edit`);
+        }
+            
+        updateData.geometry = response.features[0].geometry;
+    }
+
+    // Adds image to the same update object if file exists
     if(req.file){
+        // deleting old image from cloudinary if exists
+        if (existingListing.image && existingListing.image.filename) {
+            try {
+                await cloudinary.uploader.destroy(existingListing.image.filename);
+            } catch (err) {
+                console.error("Could not delete old cloudinary image:", err);
+            }
+        }
         updateData.image = {
             url: req.file.path,
             filename: req.file.filename
@@ -119,6 +146,14 @@ module.exports.updateListing = async (req, res) => {
 module.exports.deleteListing= async (req, res) => {
     let { id } = req.params;
     let deletedListing=await Listing.findByIdAndDelete(id);
+     // deleting cloudinary image if exists
+    if (deletedListing.image && deletedListing.image.filename) {
+      try {
+        await cloudinary.uploader.destroy(deletedListing.image.filename);
+      } catch (err) {
+        console.error('Cloudinary delete failed for listing:', err);
+      }
+    }
     console.log("Deleted Listing:", deletedListing);
     req.flash('success', 'Listing Deleted!');
     res.redirect("/listings");
