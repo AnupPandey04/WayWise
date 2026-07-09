@@ -225,6 +225,49 @@ You can easily deploy your own copy using **Render** or **Railway** by linking y
 
 ---
 
+## 📊 Performance Testing
+
+WayWise was benchmarked locally using **k6** to evaluate application stability under concurrent load.
+
+### Load Test Configuration
+
+- **Tool:** k6
+- **Virtual Users (VUs):** 100
+- **Duration:** 30 seconds
+- **Target Endpoint:** `/listings`
+
+### Results
+
+| Metric | Value |
+|--------|------:|
+| Concurrent Users | 100 |
+| Total HTTP Requests | 1,676 |
+| Failed Requests | 0 |
+| Average Response Time | 843.41 ms |
+| Median Response Time | 763.40 ms |
+| P95 Latency | 1.68 s |
+| Throughput | 53.18 requests/sec |
+
+The benchmark confirmed stable application behavior under concurrent access with **zero request failures** while serving dynamic server-rendered pages backed by MongoDB Atlas.
+
+### Running the Load Test
+
+```bash
+k6 run tests/loadtest.js
+```
+
+The load testing script is available in:
+
+```text
+tests/loadtest.js
+```
+
+> **Future Improvements**
+>
+> Planned optimizations include server-side pagination, indexed search, and database query optimization to further reduce latency and improve throughput under higher concurrent workloads.
+
+---
+
 ## 📸 Screenshots
 
 ### 🏠 Home Page
